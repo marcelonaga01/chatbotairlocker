@@ -1,0 +1,79 @@
+// webhook.js - Servidor básico para webhook do WhatsApp
+const express = require('express');
+const bodyParser = require('body-parser');
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middleware para processar JSON
+app.use(bodyParser.json());
+
+// Rota para verificação do webhook
+app.get('/webhook', (req, res) => {
+  // Seu token de verificação (defina um valor seguro)
+  const VERIFY_TOKEN = "Chatbot_Airlocker";
+  
+  // Parâmetros da solicitação
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+  
+  // Verificar o token e modo
+  if (mode && token) {
+    if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+      console.log('Webhook verificado!');
+      res.status(200).send(challenge);
+    } else {
+      res.sendStatus(403);
+    }
+  }
+});
+
+// Rota para receber mensagens
+app.post('/webhook', (req, res) => {
+  const body = req.body;
+  
+  // Verificar se é uma notificação válida do WhatsApp
+  if (body.object === 'whatsapp_business_account') {
+    // Processar as mensagens recebidas
+    if (body.entry && body.entry.length > 0) {
+      body.entry.forEach(entry => {
+        if (entry.changes && entry.changes.length > 0) {
+          const change = entry.changes[0];
+          
+          if (change.value && change.value.messages && change.value.messages.length > 0) {
+            // Processar cada mensagem
+            change.value.messages.forEach(message => {
+              processMessage(message, change.value.metadata);
+            });
+          }
+        }
+      });
+    }
+    
+    // Responder com 200 OK para confirmar recebimento
+    res.status(200).send('EVENT_RECEIVED');
+  } else {
+    // Não é uma notificação do WhatsApp
+    res.sendStatus(404);
+  }
+});
+
+// Função para processar mensagens recebidas
+function processMessage(message, metadata) {
+  const from = message.from; // Número do remetente
+  const messageId = message.id;
+  
+  // Verificar o tipo de mensagem
+  if (message.type === 'text') {
+    const text = message.text.body;
+    console.log(`Mensagem recebida de ${from}: ${text}`);
+    
+    // Aqui você implementará a lógica do chatbot
+    handleChatbotLogic(from, text);
+  }
+}
+
+// Iniciar o servidor
+app.listen(PORT, () => {
+  console.log(`Servidor rodando na porta ${PORT}`);
+});
